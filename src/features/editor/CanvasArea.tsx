@@ -14,7 +14,11 @@ export interface CanvasAreaRef {
   getThumbnail: () => Promise<string>
 }
 
-export const CanvasArea = forwardRef<CanvasAreaRef>(function CanvasArea(_, ref) {
+interface CanvasAreaProps {
+  onReady?: () => void
+}
+
+export const CanvasArea = forwardRef<CanvasAreaRef, CanvasAreaProps>(function CanvasArea({ onReady }, ref) {
   const currentContent = useEditorStore((s) => s.currentContent)
   const currentProject = useEditorStore((s) => s.currentProject)
   const engineType = useEditorStore(selectEngineType)
@@ -136,6 +140,24 @@ export const CanvasArea = forwardRef<CanvasAreaRef>(function CanvasArea(_, ref) 
       setThumbnailGetter(null)
     }
   }, [engineType, setThumbnailGetter])
+
+  // Trigger onReady when content is first rendered
+  const hasCalledOnReady = useRef(false)
+  useEffect(() => {
+    if (currentContent && !hasCalledOnReady.current && onReady) {
+      // Delay to ensure the engine has rendered
+      const timer = setTimeout(() => {
+        onReady()
+        hasCalledOnReady.current = true
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+  }, [currentContent, onReady])
+
+  // Reset onReady flag when project changes
+  useEffect(() => {
+    hasCalledOnReady.current = false
+  }, [projectKey])
 
   if (!engineType) {
     return (

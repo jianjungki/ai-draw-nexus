@@ -14,7 +14,9 @@ import {
   fileToBase64,
   parseDocument,
   validateImageFile,
+  validateDocumentFile,
   SUPPORTED_IMAGE_TYPES,
+  SUPPORTED_DOCUMENT_EXTENSIONS,
 } from '@/lib/fileUtils'
 
 export function HomePage() {
@@ -110,6 +112,51 @@ export function HomePage() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleQuickStart()
+    }
+  }
+
+  // 处理剪贴板粘贴
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+
+    const filesToProcess: File[] = []
+
+    for (const item of items) {
+      if (item.kind === 'file') {
+        const file = item.getAsFile()
+        if (file) {
+          filesToProcess.push(file)
+        }
+      }
+    }
+
+    if (filesToProcess.length === 0) return
+
+    e.preventDefault()
+
+    for (const file of filesToProcess) {
+      // 处理图片
+      if (SUPPORTED_IMAGE_TYPES.includes(file.type)) {
+        const validation = validateImageFile(file)
+        if (!validation.valid) {
+          showError(validation.error!)
+          continue
+        }
+        // 为粘贴的图片生成文件名
+        const fileName = file.name || `pasted-image-${Date.now()}.png`
+        const newFile = new File([file], fileName, { type: file.type })
+        setAttachments(prev => [...prev, newFile])
+      }
+      // 处理文档
+      else if (SUPPORTED_DOCUMENT_EXTENSIONS.some(ext => file.name.toLowerCase().endsWith(ext.replace('*', '')))) {
+        const validation = validateDocumentFile(file)
+        if (!validation.valid) {
+          showError(validation.error!)
+          continue
+        }
+        setAttachments(prev => [...prev, file])
+      }
     }
   }
 
@@ -248,10 +295,11 @@ export function HomePage() {
 
               <textarea
                 ref={textareaRef}
-                placeholder="描述你想要绘制的图表，AI Draw Nexus 会帮你完成..."
+                placeholder="描述你想要绘制的图表，AI Draw Nexus 会帮你完成...（支持粘贴图片）"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 disabled={isLoading}
                 className="min-h-[60px] w-full resize-none bg-transparent text-primary placeholder:text-muted focus:outline-none"
                 rows={2}

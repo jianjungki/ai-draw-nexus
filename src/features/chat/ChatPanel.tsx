@@ -159,6 +159,68 @@ export function ChatPanel() {
     }
   }
 
+  // 处理剪贴板粘贴
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+
+    const filesToProcess: File[] = []
+
+    for (const item of items) {
+      if (item.kind === 'file') {
+        const file = item.getAsFile()
+        if (file) {
+          filesToProcess.push(file)
+        }
+      }
+    }
+
+    if (filesToProcess.length === 0) return
+
+    e.preventDefault()
+    setIsProcessingFile(true)
+
+    try {
+      for (const file of filesToProcess) {
+        // 处理图片
+        if (SUPPORTED_IMAGE_TYPES.includes(file.type)) {
+          const validation = validateImageFile(file)
+          if (!validation.valid) {
+            showError(validation.error!)
+            continue
+          }
+          const dataUrl = await fileToBase64(file)
+          const imageAttachment: ImageAttachment = {
+            type: 'image',
+            dataUrl,
+            fileName: file.name || `pasted-image-${Date.now()}.png`,
+          }
+          setAttachments((prev) => [...prev, imageAttachment])
+        }
+        // 处理文档
+        else if (SUPPORTED_DOCUMENT_EXTENSIONS.some(ext => file.name.toLowerCase().endsWith(ext.replace('*', '')))) {
+          const validation = validateDocumentFile(file)
+          if (!validation.valid) {
+            showError(validation.error!)
+            continue
+          }
+          const content = await parseDocument(file)
+          const docAttachment: DocumentAttachment = {
+            type: 'document',
+            content,
+            fileName: file.name,
+          }
+          setAttachments((prev) => [...prev, docAttachment])
+        }
+      }
+    } catch (err) {
+      showError('粘贴文件处理失败')
+      console.error(err)
+    } finally {
+      setIsProcessingFile(false)
+    }
+  }
+
   // 获取AI消息的状态显示
   const getStatusDisplay = (status: string) => {
     switch (status) {
@@ -329,10 +391,11 @@ export function ChatPanel() {
           {/* Textarea */}
           <textarea
             ref={textareaRef}
-            placeholder="输入你的消息..."
+            placeholder="输入你的消息...（支持粘贴图片）"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             disabled={isStreaming}
             rows={1}
             className="w-full resize-none bg-transparent px-4 pt-3 pb-12 text-sm outline-none placeholder:text-muted disabled:opacity-50"

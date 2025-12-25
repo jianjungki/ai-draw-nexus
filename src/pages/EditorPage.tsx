@@ -9,6 +9,7 @@ import { useEditorStore } from '@/stores/editorStore'
 import { useChatStore } from '@/stores/chatStore'
 import { ProjectRepository } from '@/services/projectRepository'
 import { VersionRepository } from '@/services/versionRepository'
+import { generateThumbnail } from '@/lib/thumbnail'
 import { useToast } from '@/hooks/useToast'
 import {
   DropdownMenu,
@@ -182,6 +183,29 @@ export function EditorPage() {
     }
   }
 
+  // Generate thumbnail when canvas is ready (for projects without thumbnail, e.g., imported projects)
+  const handleCanvasReady = async () => {
+    if (!currentProject || !currentContent) return
+    // Skip if project already has a thumbnail
+    if (currentProject.thumbnail) return
+
+    try {
+      let thumbnail = ''
+      if (currentProject.engineType === 'drawio' && canvasRef.current) {
+        thumbnail = await canvasRef.current.getThumbnail()
+      } else {
+        thumbnail = await generateThumbnail(currentContent, currentProject.engineType)
+      }
+
+      if (thumbnail) {
+        await ProjectRepository.update(currentProject.id, { thumbnail })
+        setProject({ ...currentProject, thumbnail })
+      }
+    } catch (err) {
+      console.error('Failed to generate thumbnail on ready:', err)
+    }
+  }
+
   if (isLoading || !currentProject) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -345,7 +369,7 @@ export function EditorPage() {
 
         {/* Center: Canvas */}
         <div className="flex-1">
-          <CanvasArea ref={canvasRef} />
+          <CanvasArea ref={canvasRef} onReady={handleCanvasReady} />
         </div>
 
         {/* Right: Version Panel (collapsible) */}

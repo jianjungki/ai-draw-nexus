@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Plus, Trash2, Sparkles, Pencil } from 'lucide-react'
+import { Plus, Trash2, Sparkles, Pencil, Upload } from 'lucide-react'
 import {
   Button,
   Input,
@@ -12,7 +12,7 @@ import {
   DialogFooter,
   Loading,
 } from '@/components/ui'
-import { AppSidebar, AppHeader, CreateProjectDialog } from '@/components/layout'
+import { AppSidebar, AppHeader, CreateProjectDialog, ImportProjectDialog } from '@/components/layout'
 import { formatDate } from '@/lib/utils'
 import type { Project } from '@/types'
 import { ProjectRepository } from '@/services/projectRepository'
@@ -25,6 +25,9 @@ export function ProjectsPage() {
 
   // Create dialog state
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+
+  // Import dialog state
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
 
   // Delete dialog state
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null)
@@ -115,13 +118,23 @@ export function ProjectsPage() {
               <div>
                 <h1 className="text-2xl font-bold text-primary">项目列表</h1>
               </div>
-              <Button
-                onClick={() => setIsCreateDialogOpen(true)}
-                className="rounded-full bg-primary px-6 text-surface hover:bg-primary/90"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                新建项目
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsImportDialogOpen(true)}
+                  className="rounded-full px-6"
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  导入项目
+                </Button>
+                <Button
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  className="rounded-full bg-primary px-6 text-surface hover:bg-primary/90"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  新建项目
+                </Button>
+              </div>
             </div>
 
             {/* Projects Grid */}
@@ -230,6 +243,12 @@ export function ProjectsPage() {
       <CreateProjectDialog
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
+      />
+
+      {/* Import Dialog */}
+      <ImportProjectDialog
+        open={isImportDialogOpen}
+        onOpenChange={setIsImportDialogOpen}
       />
 
       {/* Rename Dialog */}
