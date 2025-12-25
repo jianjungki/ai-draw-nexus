@@ -1,5 +1,7 @@
 # AI Diagram Hub
 
+**Online**: https://ai-draw-nexus.aizhi.site
+
 An AI-powered diagram creation platform. Describe your diagram in natural language, and AI generates it for you.
 
 Built on Cloudflare Pages with React frontend and Pages Functions backend.
