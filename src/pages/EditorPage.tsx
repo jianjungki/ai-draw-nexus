@@ -11,6 +11,7 @@ import { ProjectRepository } from '@/services/projectRepository'
 import { VersionRepository } from '@/services/versionRepository'
 import { generateThumbnail } from '@/lib/thumbnail'
 import { useToast } from '@/hooks/useToast'
+import { useCollab } from '@/hooks/useCollab'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,10 +40,24 @@ export function EditorPage() {
   const titleInputRef = useRef<HTMLInputElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<CanvasAreaRef>(null)
+  const isRemoteChange = useRef(false)
+  const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { success } = useToast()
 
   const { currentProject, currentContent, hasUnsavedChanges, setProject, setContentFromVersion, markAsSaved, reset: resetEditor } = useEditorStore()
   const { clearMessages } = useChatStore()
+
+  const handleCollabMessage = (data: { content: string }) => {
+    if (data.content && data.content !== useEditorStore.getState().currentContent) {
+      isRemoteChange.current = true
+      setContentFromVersion(data.content)
+    }
+  }
+
+  const { sendMessage } = useCollab({
+    projectId: projectId!,
+    onMessage: handleCollabMessage,
+  })
 
   useEffect(() => {
     localStorage.setItem('ai-draw-nexus.chatPanelCollapsed', String(isChatPanelCollapsed))
@@ -110,6 +125,33 @@ export function EditorPage() {
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [isMenuOpen])
+
+  // Send content changes via WebSocket
+  useEffect(() => {
+    if (isRemoteChange.current) {
+      isRemoteChange.current = false
+      return
+    }
+
+    if (!hasUnsavedChanges || !currentContent) {
+      return
+    }
+
+    // Debounce sending messages
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current)
+    }
+
+    debounceTimeout.current = setTimeout(() => {
+      sendMessage({ content: currentContent })
+    }, 500) // 500ms debounce delay
+
+    return () => {
+      if (debounceTimeout.current) {
+        clearTimeout(debounceTimeout.current)
+      }
+    }
+  }, [currentContent, hasUnsavedChanges, sendMessage])
 
   const handleNewProject = () => {
     setIsMenuOpen(false)
